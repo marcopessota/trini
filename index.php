@@ -207,6 +207,53 @@
 	// print_r($obj_post); exit;
 	cadastra_pessoa($obj_post);
 
+	function monta_pesquisa_pedido () {
+		global $_DB;
+		$obj_pedido = $_DB->select("view_pesquisa_pedidos", "*");
+
+		$obj_pesquisa_pedido = array();
+		$obj_pesquisa_pedido["Codigo"] = $obj_pedido[0][""]; // ?
+		$obj_pesquisa_pedido["OrigemVenda"] = $obj_pedido[0][""]; // ?
+		$obj_pesquisa_pedido["Deposito"] = $obj_pedido[0][""]; // ?
+		$obj_pesquisa_pedido["StatusSistema"] = $obj_pedido[0]["status"]; // StatusSistema e Status com o mesmo valor
+		$obj_pesquisa_pedido["Status"] = $obj_pedido[0]["status"]; // StatusSistema e Status com o mesmo valor
+		$obj_pesquisa_pedido["Categoria"] = $obj_pedido[0][""]; // ?
+		$obj_pesquisa_pedido["Validade"] = $obj_pedido[0]["data_entrega"]; // Data de entrega?
+		$obj_pesquisa_pedido["Empresa"] = $obj_pedido[0][""]; // ?
+		$obj_pesquisa_pedido["Cliente"] = $obj_pedido[0][""]; // ?
+		$obj_pesquisa_pedido["ClienteCNPJ"] = empty($obj_pedido[0]["cnpj"]) ? preg_replace("/[^0-9]/", "", $obj_pedido[0]["cpf"]) : preg_replace("/[^0-9]/", "", $obj_pedido[0]["cnpj"]);?
+		$obj_pesquisa_pedido["Vendedor"] = $obj_pedido[0][""]; // ?
+		$obj_pesquisa_pedido["PlanoDeConta"] = $obj_pedido[0][""]; // ?
+		$obj_pesquisa_pedido["FormaPagamento"] = $obj_pedido[0][""]; // ?
+		$obj_pesquisa_pedido["NumeroParcelas"] = $obj_pedido[0][""]; // ?
+		$obj_pesquisa_pedido["Transportadora"] = $obj_pedido[0]["tipo_entrega"]; // Sedex, retirar em loja
+		$obj_pesquisa_pedido["DataEnvio"] = $obj_pedido[0][""]; // ?
+		$obj_pesquisa_pedido["Enviado"] = $obj_pedido[0][""]; // ?
+		$obj_pesquisa_pedido["ValorFrete"] = $obj_pedido[0][""]; // ?
+		$obj_pesquisa_pedido["FreteContaEmitente"] = $obj_pedido[0][""]; // ?
+		$obj_pesquisa_pedido["ValorSeguro"] = $obj_pedido[0][""]; // ?
+		$obj_pesquisa_pedido["Descricao"] = $obj_pedido[0]["obs"]; 
+		$obj_pesquisa_pedido["OutrasDespesas"] = $obj_pedido[0][""]; // ?
+		$obj_pesquisa_pedido["ValorFinal"] = $obj_pedido[0]["preco"];
+		$obj_pesquisa_pedido["Finalizado"] = $obj_pedido[0][""]; // Pedido finalizado não pode sofrer alterações
+		$obj_pesquisa_pedido["Lancado"] = $obj_pedido[0][""]; // Pedido já lançado pelo financeiro
+		$obj_pesquisa_pedido["Municipio"] = $obj_pedido[0]["cidade"];
+		$obj_pesquisa_pedido["CodigoMunicipio"] = $obj_pedido[0][""]; // ?
+		$obj_pesquisa_pedido["Pais"] = $obj_pedido[0][""]; // ?
+		$obj_pesquisa_pedido["CEP"] = $obj_pedido[0]["cep"];
+		$obj_pesquisa_pedido["UF"] = $obj_pedido[0]["uf"];
+		$obj_pesquisa_pedido["UFCodigo"] = $obj_pedido[0][""]; // ?
+		$obj_pesquisa_pedido["Bairro"] = $obj_pedido[0]["bairro"];
+		$obj_pesquisa_pedido["Logradouro"] = $obj_pedido[0]["endereco"];
+		$obj_pesquisa_pedido["LogradouroNumero"] = $obj_pedido[0]["end_num"];
+		$obj_pesquisa_pedido["LogradouroComplemento"] = $obj_pedido[0]["complemento"];
+		$obj_pesquisa_pedido["Items"] = // ?
+		// "Items":[ {"Codigo":"41", "Unidade":"", "Descricao":"SERVIÇOS GERAIS", "Quantidade":1.0, "ValorUnitario":10.0, "DescontoUnitario":0.0, "ValorTotal":10.0},{"Codigo":"12", "Unidade":"", 
+		// "Descricao":"WEB CAN", "Quantidade":15.0, "ValorUnitario":101.51, "DescontoUnitario":0.0, "ValorTotal":1522.65}]}
+
+		return $obj_pesquisa_pedido;
+	}
+
 	function cadastra_pessoa($obj_post){
 		echo http_build_query($obj_post);
 		$ch = init_curl();
