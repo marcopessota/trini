@@ -1,26 +1,78 @@
 <?php
 	set_time_limit(0);
-	include_once("classes/medoo.min.php");
+	// include_once("classes/medoo.min.php");
 
 	$tabelas_pedido = array(array("tabela" => "tb_pedidos", "id" => "id_pedido", "loja" => "São Paulo", "uf" => "SP"),
 							array("tabela" => "tb_pedidosbh", "id" => "id_pedidobh", "loja" => "Belo Horizonte", "uf" => "BH"),
 							array("tabela" => "tb_pedidosrj", "id" => "id_pedidorj", "loja" => "Rio", "uf" => "RJ"),
-							array("tabela" => "tb_pedidosw", "id" => "id_pedidow", "loja" => "D&A PARAMENTOS LTDA")
+							array("tabela" => "tb_pedidosw", "id" => "id_pedidow", "loja" => "D&A PARAMENTOS LTDA", "uf" => "")
 							); 
 
+	$_DB = cria_conexao();
 
-	$_DB = new medoo(array(
-	'database_type' => 'mysql',
-	'database_name' => 'trina',
-	'server' => '127.0.0.1',
-	'username' => 'root',
-	'password' => '',
-	'charset' => 'utf8',
-	));
+	function cria_conexao(){
+		$_DB = mysql_connect('127.0.0.1', 'root', '');
+		if (!$_DB) {
+		    die('Could not connect: ' . mysql_error());
+		}
+		$db_selected = mysql_select_db('trina', $_DB);
+		if (!$db_selected) {
+		    die ('Can\'t use foo : ' . mysql_error());
+		}
 
-	$obj_clientes = $_DB->select("v_cpf_cnpj", "*");
+		return $_DB;
+	}
 
-	// print_r($clientes);
+	function fecha_conexao(){
+		global $_DB;
+		mysql_close($_DB);
+	}
+
+
+	function query($sql){
+		global $_DB;
+		$result = mysql_query($sql, $_DB);
+		while ($row = mysql_fetch_array($result)) {
+		    $obj_return[] = $row;
+		}
+		return $obj_return;
+	}
+
+	function grava($sql){
+		global $_DB;
+		$result = mysql_query($sql, $_DB);
+		return $result;
+	}
+
+	// $sql = 'SELECT * FROM v_cpf_cnpj';
+	// $obj_clientes = query($sql);
+
+	// $_DB = new medoo(array(
+	// 'database_type' => 'mysql',
+	// 'database_name' => 'trina',
+	// 'server' => '127.0.0.1',
+	// 'username' => 'root',
+	// 'password' => '',
+	// 'charset' => 'utf8',
+	// ));
+	// $obj_clientes = $_DB->select("tb_produtossige", "*");
+
+	// print_r($obj_clientes);
+	// exit();
+
+	if($_GET["a"] == "produtos"){
+		baixa_pedidosSIGE(0);
+	}
+	if($_GET["a"] == "pedidos"){
+		foreach($tabelas_pedido as $v_tabela){
+			monta_pesquisa_pedido($v_tabela["tabela"], $v_tabela["id"], $v_tabela["loja"], $v_tabela["uf"]);
+		}
+	}
+
+
+
+
+
 
 
 	//  SYNC DE PRODUTOS SIGE
@@ -31,9 +83,14 @@
 			if($item->Categoria == "PARAMENTOS"){
 				$produtos_paramentos["descricao"] = $item->Nome;
 				$produtos_paramentos["id_sige"] = $item->Codigo;
-				$result_qry = $_DB->select("tb_produtosSIGE", "*", array("id_sige" => $item->Codigo));
+				$sql = "SELECT * FROM tb_produtossige where id_sige = ".$item->Codigo;
+				$result_qry = query($sql);
+				// $result_qry = $_DB->select("tb_produtossige", "*", array("id_sige" => $item->Codigo));
 				if(count($result_qry) == 0){
-					$_DB->insert("tb_produtosSIGE", $produtos_paramentos);
+					$sql_insert = "INSERT INTO tb_produtossige values(null, ".$produtos_paramentos["id_sige"].", '".$produtos_paramentos["descricao"]."' )";
+					grava($sql_insert);
+					echo "Produto " . $produtos_paramentos["descricao"]. "gravado com sucesso.<br>";
+					// $_DB->insert("tb_produtossige", $produtos_paramentos);
 				}
 			}
 		}
@@ -42,7 +99,6 @@
 		}
 		return;
 	}
-	// baixa_pedidosSIGE(0); exit;
 
 
 	function init_curl(){
@@ -79,7 +135,9 @@
 
 	function monta_obj_pessoa($id_pessoa){
 		global $_DB;
-		$obj_cliente = $_DB->select("tb_clientes", "*", array("id_cliente" => $id_pessoa));
+		// $obj_cliente = $_DB->select("tb_clientes", "*", array("id_cliente" => $id_pessoa));
+		$sql = "SELECT * FROM tb_clientes where id_cliente = ".$id_pessoa;
+		$obj_cliente = query($sql);
 		//print_r($obj_cliente);
 		$obj_insert_client = array();
 		$obj_insert_client["PessoaFisica"] = empty($obj_cliente[0]["cpf"]) ? "false" : "true";
@@ -149,16 +207,10 @@
 		curl_close($ch);
 		return json_decode($result);
 	}
-	// $obj_post = monta_obj_pessoa(10);
-	// print_r($obj_post);
-	// cadastra_pessoa($obj_post);
-
 
 	//  PEDIDOS
 
-	foreach($tabelas_pedido as $v_tabela){
-		monta_pesquisa_pedido($v_tabela["tabela"], $v_tabela["id"], $v_tabela["loja"], $v_tabela["uf"]);
-	}
+	
 
 	function monta_pesquisa_pedido($tabela, $id, $cidade, $uf){
 		global $_DB;
@@ -184,47 +236,83 @@
 				DATE_FORMAT(data_entrega, '%m%Y') = DATE_FORMAT(CURRENT_DATE, '%m%Y') 
 				GROUP BY ped.".$id. " order by id_cliente";
 				// echo $qry.PHP_EOL;
-		$obj_pedido = $_DB->query($qry)->fetchAll();
-		// return ;
-		 // print_r($obj_pedido);exit;
-
-	
-
-
+		$obj_pedido = query($qry);
 		$id_cliente = 0;
 		foreach($obj_pedido as $linha){
+			//echo $linha["id_cliente"].PHP_EOL;
+
+			if(empty($linha["idComp"])){
+				echo "id " $linha["idComp"] . " da tabela " .$tabela. "está sem id_produto_SIGE <br>";
+			}else{
+				$qry2 = "SELECT  * FROM tb_produtossige  WHERE id_sige = ".$linha["idComp"] ;
+				// echo $qry.PHP_EOL;
+				$produto_result = query($qry2);
+				$id_sige = $produto_result["id_sige"];
+				$descricao = $produto_result["descricao"];
+			}
+
 			if($linha["id_cliente"] != $id_cliente){
+				if(!empty($obj_pesquisa_pedido)){
+					if($id_cliente == 243){
+
+						echo json_encode($obj_pesquisa_pedido);
+						print_r($obj_pesquisa_pedido);
+						$a = cadastra_pedido($obj_pesquisa_pedido);
+						print_r($a);
+					}
+				}
+
 				$id_cliente = $linha["id_cliente"];
+
+				// PROCESSO DE CRUD DE CLIENTE DO PAINEL PARA O SIGE
+				
+				$cpf = preg_replace("/[^0-9]/", "", $linha["cpf"]);
+				$cnpj = preg_replace("/[^0-9]/", "", $linha["cnpj"]);
+
+				$cliente_existe_cpf = getdata_SIGE("http://api.sigecloud.com.br/request/pessoas/pesquisar?nomefantasia=&cpfcnpj=".$cpf."&cidade=&uf=&cliente=false&fornecedor=false&pageSize=10&skip=0");
+				$cliente_existe_cnpj = getdata_SIGE("http://api.sigecloud.com.br/request/pessoas/pesquisar?nomefantasia=&cpfcnpj=".$cnpj."&cidade=&uf=&cliente=false&fornecedor=false&pageSize=10&skip=0");				
+
+				if(empty($cliente_existe_cpf) && empty($cliente_existe_cnpj)){
+					$obj_cli = monta_obj_pessoa($id_cliente);
+					cadastra_pessoa($obj_cli);
+					echo "Cliente cadastrado no SIGE- ".  $linha["nome"]."<br>".PHP_EOL;
+				}
+
+				
+				// PEDIDOS
 				
 				$obj_pesquisa_pedido = array();
 				$obj_pesquisa_pedido["Codigo"] = "";
 				$obj_pesquisa_pedido["OrigemVenda"] = "Venda Direta";
-				$obj_pesquisa_pedido["Deposito"] = "Depósito Loja ".$cidade;
+				$obj_pesquisa_pedido["Deposito"] = "Depósito Loja ".$uf;
 				$obj_pesquisa_pedido["StatusSistema"] = "Pedido";
 				
 
 				if($tabela == "tb_pedidosw"){
 					$status = "Sedex";
-				}elseif($tabela == "tb_pedidos"){
+				// }elseif($tabela == "tb_pedidos"){
+				}else{
 					$status = "Retirar loja ".$uf;
 				}
 				
 				$obj_pesquisa_pedido["Status"] = $status;
 				$obj_pesquisa_pedido["Categoria"] = "";
 				// $obj_pesquisa_pedido["Validade"] = $linha["data_entrega"]."T00:00:00-02:00";
-				$obj_pesquisa_pedido["Validade"] = "";
+				$obj_pesquisa_pedido["Validade"] = "0001-01-01T00:00:00-02:00";
 
 				if(($linha["producao"] == "Fábrica" && $linha["tipo_entrega"] == "Sedex") || $tabela == "tb_pedidosw"){
 					$empresa = "D&A PARAMENTOS LTDA";
-				}
-				
-				if($linha["producao"] == "Atelier" && $linha["tipo_entrega"] == "Sedex" && $tabela != "tb_pedidosw"){
+				}else{
 					$empresa = "D&A Decorações e Artesanato Litúrgico Ltda - Loja ".$cidade;
 				}
+				
+				// if($linha["producao"] == "Atelier" && $linha["tipo_entrega"] == "Sedex" && $tabela != "tb_pedidosw"){
+				// 	$empresa = "D&A Decorações e Artesanato Litúrgico Ltda - Loja ".$cidade;
+				// }
 
-				if($linha["producao"] == "Atelier" && $linha["tipo_entrega"] == "Retirar Loja" && $tabela != "tb_pedidosw"){
-					$empresa =  "D&A Decorações e Artesanato Litúrgico Ltda - Loja ".$cidade;
-				}
+				// if($linha["producao"] == "Atelier" && $linha["tipo_entrega"] == "Retirar Loja" && $tabela != "tb_pedidosw"){
+				// 	$empresa =  "D&A Decorações e Artesanato Litúrgico Ltda - Loja ".$cidade;
+				// }
 				$obj_pesquisa_pedido["Empresa"] = $empresa;
 				$obj_pesquisa_pedido["Cliente"] = $linha["nome"];
 				$obj_pesquisa_pedido["ClienteCNPJ"] = empty($linha["cnpj"]) ? preg_replace("/[^0-9]/", "", $linha["cpf"]) : preg_replace("/[^0-9]/", "", $linha["cnpj"]);
@@ -238,18 +326,18 @@
 
 				$obj_pesquisa_pedido["PlanoDeConta"] = $plano_conta;
 				$obj_pesquisa_pedido["FormaPagamento"] = "";
-				$obj_pesquisa_pedido["NumeroParcelas"] = "";
+				$obj_pesquisa_pedido["NumeroParcelas"] = 0;
 				$obj_pesquisa_pedido["Transportadora"] = "";
 				$obj_pesquisa_pedido["DataPostagem"] = "";
-				$obj_pesquisa_pedido["DataEnvio"] = "";
+				$obj_pesquisa_pedido["DataEnvio"] = "0001-01-01T00:00:00-02:00";
 				$obj_pesquisa_pedido["Enviado"] = "false";
-				$obj_pesquisa_pedido["ValorFrete"] = "";
-				$obj_pesquisa_pedido["FreteContaEmitente"] = "";
-				$obj_pesquisa_pedido["ValorSeguro"] = "";
+				$obj_pesquisa_pedido["ValorFrete"] = 0.0;
+				$obj_pesquisa_pedido["FreteContaEmitente"] = "false";
+				$obj_pesquisa_pedido["ValorSeguro"] = 0.0;
 				$obj_pesquisa_pedido["Descricao"] = ""; 
-				$obj_pesquisa_pedido["OutrasDespesas"] = 0;
+				$obj_pesquisa_pedido["OutrasDespesas"] = 0.0;
 				$obj_pesquisa_pedido["TransacaoCartao"] = "";
-				$obj_pesquisa_pedido["ValorFinal"] = 0;
+				$obj_pesquisa_pedido["ValorFinal"] = 0.0;
 				$obj_pesquisa_pedido["Finalizado"] = "false";
 				$obj_pesquisa_pedido["Lancado"] = "false";
 				$obj_pesquisa_pedido["Municipio"] = "";
@@ -263,8 +351,9 @@
 				$obj_pesquisa_pedido["LogradouroNumero"] = "";
 				$obj_pesquisa_pedido["LogradouroComplemento"] = "";
 				$obj_pesquisa_pedido["Items"] = array();
-				$obj_produto["Codigo"] = "";
-				$obj_produto["Descricao"] = "";
+				$obj_produto["Codigo"] = $id_sige ;
+				$obj_produto["Unidade"] = "und";
+				$obj_produto["Descricao"] = $descricao;
 				$obj_produto["Quantidade"] = (double) $linha["quantidade"];
 				$obj_produto["ValorUnitario"] = (double) $linha["preco"] / $linha["quantidade"];
 				$obj_produto["ValorFrente"] = 0;
@@ -277,9 +366,9 @@
 				$obj_produto["ValorUnitarioFrete"] = 0;
 				$obj_produto["PrazoEntregaFrete"] = 0;
 			}else{
-				$obj_produto["Codigo"] = "";
+				$obj_produto["Codigo"] = $id_sige;
 				$obj_produto["Unidade"] = "und";
-				$obj_produto["Descricao"] = "DESCRICAO";
+				$obj_produto["Descricao"] = $descricao;
 				$obj_produto["Quantidade"] = (double) $linha["quantidade"];
 				$obj_produto["ValorUnitario"] = (double) $linha["preco"] / $linha["quantidade"];
 				$obj_produto["ValorFrente"] = 0;
@@ -295,10 +384,21 @@
 			$obj_pesquisa_pedido["Items"][] = $obj_produto; 
 
 		}
-		print_r($obj_pesquisa_pedido);
 	}
+	function cadastra_pedido($obj_post){
+		$query_string = http_build_query($obj_post);
+		$ch = init_curl();
+		curl_setopt($ch,CURLOPT_POST, 1);
+		curl_setopt($ch,CURLOPT_POSTFIELDS, $query_string);
+		curl_setopt($ch, CURLOPT_URL, "http://api.sigecloud.com.br/request/pedidos/salvar");
 
-	// monta_pesquisa_pedido();
-
+		if (($result = curl_exec($ch)) === FALSE) {
+			die('cURL error: '.curl_error($ch)."<br />\n");
+		} else {
+			echo "Success!<br />\n";
+		}
+		curl_close($ch);
+		return json_decode($result);
+	}
 
 ?>
