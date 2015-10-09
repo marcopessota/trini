@@ -1,17 +1,18 @@
 <?php
+	// ini_set('default_charset', 'utf-8');
 	set_time_limit(0);
 	// include_once("classes/medoo.min.php");
 
 	$tabelas_pedido = array(array("tabela" => "tb_pedidos", "id" => "id_pedido", "loja" => "São Paulo", "uf" => "SP"),
-							array("tabela" => "tb_pedidosbh", "id" => "id_pedidobh", "loja" => "Belo Horizonte", "uf" => "BH"),
-							array("tabela" => "tb_pedidosrj", "id" => "id_pedidorj", "loja" => "Rio", "uf" => "RJ"),
-							array("tabela" => "tb_pedidosw", "id" => "id_pedidow", "loja" => "D&A PARAMENTOS LTDA", "uf" => "")
-							); 
+						array("tabela" => "tb_pedidosbh", "id" => "id_pedidobh", "loja" => "Belo Horizonte", "uf" => "BH"),
+						array("tabela" => "tb_pedidosrj", "id" => "id_pedidorj", "loja" => "Rio", "uf" => "RJ"),
+						array("tabela" => "tb_pedidosw", "id" => "id_pedidow", "loja" => "D&A PARAMENTOS LTDA", "uf" => "")
+						);
 
 	$_DB = cria_conexao();
 
 	function cria_conexao(){
-		$_DB = mysql_connect('127.0.0.1', 'root', '');
+		$_DB = mysql_connect('localhost', '127.0.0.1', '');
 		if (!$_DB) {
 		    die('Could not connect: ' . mysql_error());
 		}
@@ -141,16 +142,16 @@
 		//print_r($obj_cliente);
 		$obj_insert_client = array();
 		$obj_insert_client["PessoaFisica"] = empty($obj_cliente[0]["cpf"]) ? "false" : "true";
-		$obj_insert_client["NomeFantasia"] = $obj_cliente[0]["nome"];
+		$obj_insert_client["NomeFantasia"] = utf8_encode($obj_cliente[0]["nome"]);
 		$obj_insert_client["RazaoSocial"] = empty($obj_cliente[0]["cpf"]) ? $obj_cliente[0]["instituicao"] : "";
 		$obj_insert_client["CNPJ_CPF"] = empty($obj_cliente[0]["cpf"]) ? preg_replace("/[^0-9]/", "", $obj_cliente[0]["cnpj"]) : preg_replace("/[^0-9]/", "", $obj_cliente[0]["cpf"]);
 		$obj_insert_client["RG"] = "";
 		$obj_insert_client["IE"] = $obj_cliente[0]["insc_est"];
-		$obj_insert_client["Logradouro"] = $obj_cliente[0]["endereco"];
+		$obj_insert_client["Logradouro"] = utf8_encode($obj_cliente[0]["endereco"]);
 		$obj_insert_client["LogradouroNumero"] = $obj_cliente[0]["end_num"];
 		$obj_insert_client["Complemento"] = $obj_cliente[0]["complemento"];
-		$obj_insert_client["Bairro"] = $obj_cliente[0]["bairro"];
-		$obj_insert_client["Cidade"] = $obj_cliente[0]["cidade"];
+		$obj_insert_client["Bairro"] = utf8_encode($obj_cliente[0]["bairro"]);
+		$obj_insert_client["Cidade"] = utf8_encode($obj_cliente[0]["cidade"]);
 		$obj_insert_client["CodigoMunicipio"] = "";
 		$obj_insert_client["Pais"] = $obj_cliente[0]["insc_est"];
 		$obj_insert_client["CodigoPais"] = $obj_cliente[0]["insc_est"];
@@ -158,20 +159,17 @@
 		$obj_insert_client["UF"] = $obj_cliente[0]["uf"];
 		$obj_insert_client["CodigoUF"] = "";
 
-		if(empty($obj_cliente[0]["tel1"]) && empty($obj_cliente[0]["tel2"])){
-			$tel = $obj_cliente[0]["cel"];
-		}
 
-		if(empty($obj_cliente[0]["tel2"]) && empty($obj_cliente[0]["cel"])){
+		if(empty($obj_cliente[0]["tel2"])){
 			$tel = $obj_cliente[0]["tel1"];
 		}
 
-		if(empty($obj_cliente[0]["tel1"]) && empty($obj_cliente[0]["cel"])){
+		if(empty($obj_cliente[0]["cel"])){
 			$tel = $obj_cliente[0]["tel2"];
 		}
 
-		$obj_insert_client["Telefone"] = $tel;
-		$obj_insert_client["Celular"] = "";
+		$obj_insert_client["Telefone"] = str_replace("-","",str_replace(")","",str_replace("(", "", $tel)));
+		$obj_insert_client["Celular"] = str_replace("-","",str_replace(")","",str_replace("(", "", $obj_cliente[0]["cel"])));
 		$obj_insert_client["Email"] = $obj_cliente[0]["email"];
 		$obj_insert_client["Cliente"] = "true";
 		$obj_insert_client["Tecnico"] = "false";
@@ -233,156 +231,191 @@
 				WHERE 
 				(status = 'Pendente' OR status = 'Pronto') 
 				AND
+				(enviado_para_sige is null OR enviado_para_sige <> 'true')
+				AND
 				DATE_FORMAT(data_entrega, '%m%Y') = DATE_FORMAT(CURRENT_DATE, '%m%Y') 
 				GROUP BY ped.".$id. " order by id_cliente";
 				// echo $qry.PHP_EOL;
 		$obj_pedido = query($qry);
+		// print_r($obj_pedido);exit;
 		$id_cliente = 0;
+		$pedido_validado = true;
+
+		// print_r($obj_pedido);exit;
 		foreach($obj_pedido as $linha){
 			//echo $linha["id_cliente"].PHP_EOL;
-
-			if(empty($linha["idComp"])){
-				echo "id " $linha["idComp"] . " da tabela " .$tabela. "está sem id_produto_SIGE <br>";
-			}else{
-				$qry2 = "SELECT  * FROM tb_produtossige  WHERE id_sige = ".$linha["idComp"] ;
-				// echo $qry.PHP_EOL;
-				$produto_result = query($qry2);
-				$id_sige = $produto_result["id_sige"];
-				$descricao = $produto_result["descricao"];
-			}
-
-			if($linha["id_cliente"] != $id_cliente){
-				if(!empty($obj_pesquisa_pedido)){
-					if($id_cliente == 243){
-
-						echo json_encode($obj_pesquisa_pedido);
-						print_r($obj_pesquisa_pedido);
-						$a = cadastra_pedido($obj_pesquisa_pedido);
-						print_r($a);
+			// if($linha["id_cliente"] == 3384){
+				if(empty($linha["idComp"])){
+					echo "id (". $linha[$id] . ") da tabela " .$tabela. utf8_encode(" está sem id_produto_SIGE <br>").PHP_EOL;
+					$id_sige = "";
+					$descricao = "";
+				}else{
+					$qry2 = "SELECT  * FROM tb_produtossige  WHERE id_sige = ".$linha["idComp"] ;
+					// echo $qry.PHP_EOL;
+					$produto_result = query($qry2);
+					$produto_result = $produto_result[0];
+					$id_sige = $produto_result["id_sige"];
+					$descricao = utf8_encode($produto_result["descricao"]);
+					
+				}
+				// echo $pedido_validado.PHP_EOL;
+				if($linha["id_cliente"] != $id_cliente){
+					if(!empty($obj_pesquisa_pedido)){
+						// if($id_cliente == 243){
+							// echo json_encode($obj_pesquisa_pedido);
+							// print_r($obj_pesquisa_pedido);
+							if($pedido_validado == true){
+								cadastra_pedido($obj_pesquisa_pedido);
+								foreach($id_pedidos as $v_id_pedido){
+									$qry_update = ' UPDATE '.$tabela.' set enviado_para_sige = "true" WHERE '.$id.' = '.  $v_id_pedido;
+									grava($qry_update);
+									// echo $qry_update."<br>".PHP_EOL;
+									echo "Pedido (".$v_id_pedido.") enviado para o SIGE com sucesso<br>".PHP_EOL;
+								}
+							// // $a = cadastra_pedido($obj_pesquisa_pedido);
+							// 	$qry_update = 'UPDATE '.$tabela.' set enviado_para_sige = "true" WHERE '.$id.' = '. $linha[$id];
+							}
+							$pedido_validado = true;
+							// print_r($a);
+						// }
+							// if($linha["id_cliente"] == 71){
+							// 	exit();
+							// }
 					}
-				}
 
-				$id_cliente = $linha["id_cliente"];
+					$id_cliente = $linha["id_cliente"];
+					$id_pedidos = array();
 
-				// PROCESSO DE CRUD DE CLIENTE DO PAINEL PARA O SIGE
-				
-				$cpf = preg_replace("/[^0-9]/", "", $linha["cpf"]);
-				$cnpj = preg_replace("/[^0-9]/", "", $linha["cnpj"]);
+					// PROCESSO DE CRUD DE CLIENTE DO PAINEL PARA O SIGE
+					
+					$cpf = preg_replace("/[^0-9]/", "", $linha["cpf"]);
+					$cnpj = preg_replace("/[^0-9]/", "", $linha["cnpj"]);
 
-				$cliente_existe_cpf = getdata_SIGE("http://api.sigecloud.com.br/request/pessoas/pesquisar?nomefantasia=&cpfcnpj=".$cpf."&cidade=&uf=&cliente=false&fornecedor=false&pageSize=10&skip=0");
-				$cliente_existe_cnpj = getdata_SIGE("http://api.sigecloud.com.br/request/pessoas/pesquisar?nomefantasia=&cpfcnpj=".$cnpj."&cidade=&uf=&cliente=false&fornecedor=false&pageSize=10&skip=0");				
+					$cliente_existe_cpf = getdata_SIGE("http://api.sigecloud.com.br/request/pessoas/pesquisar?nomefantasia=&cpfcnpj=".$cpf."&cidade=&uf=&cliente=false&fornecedor=false&pageSize=10&skip=0");
+					$cliente_existe_cnpj = getdata_SIGE("http://api.sigecloud.com.br/request/pessoas/pesquisar?nomefantasia=&cpfcnpj=".$cnpj."&cidade=&uf=&cliente=false&fornecedor=false&pageSize=10&skip=0");				
 
-				if(empty($cliente_existe_cpf) && empty($cliente_existe_cnpj)){
-					$obj_cli = monta_obj_pessoa($id_cliente);
-					cadastra_pessoa($obj_cli);
-					echo "Cliente cadastrado no SIGE- ".  $linha["nome"]."<br>".PHP_EOL;
-				}
+					if(empty($cliente_existe_cpf) && empty($cliente_existe_cnpj)){
+						$obj_cli = monta_obj_pessoa($id_cliente);
 
-				
-				// PEDIDOS
-				
-				$obj_pesquisa_pedido = array();
-				$obj_pesquisa_pedido["Codigo"] = "";
-				$obj_pesquisa_pedido["OrigemVenda"] = "Venda Direta";
-				$obj_pesquisa_pedido["Deposito"] = "Depósito Loja ".$uf;
-				$obj_pesquisa_pedido["StatusSistema"] = "Pedido";
-				
+						cadastra_pessoa($obj_cli);
+						echo "Cliente cadastrado no SIGE- ".  $linha["nome"]."<br>".PHP_EOL;
+					}
 
-				if($tabela == "tb_pedidosw"){
-					$status = "Sedex";
-				// }elseif($tabela == "tb_pedidos"){
+					
+					// PEDIDOS
+					
+					$obj_pesquisa_pedido = array();
+					$obj_pesquisa_pedido["Codigo"] = "";
+					$obj_pesquisa_pedido["OrigemVenda"] = "Venda Direta";
+					$obj_pesquisa_pedido["Deposito"] = "Depósito Loja ".$uf;
+					$obj_pesquisa_pedido["StatusSistema"] = "Pedido";
+					
+
+					if($tabela == "tb_pedidosw"){
+						$status = "Sedex";
+					// }elseif($tabela == "tb_pedidos"){
+					}else{
+						$status = "Retirar loja ".$uf;
+					}
+					
+					$obj_pesquisa_pedido["Status"] = $status;
+					$obj_pesquisa_pedido["Categoria"] = "";
+					// $obj_pesquisa_pedido["Validade"] = $linha["data_entrega"]."T00:00:00-02:00";
+					$obj_pesquisa_pedido["Validade"] = "0001-01-01T00:00:00-02:00";
+
+					if(($linha["producao"] == "Fábrica" && $linha["tipo_entrega"] == "Sedex") || $tabela == "tb_pedidosw"){
+						$empresa = "D&A PARAMENTOS LTDA";
+					}else{
+						$empresa = "D&A Decorações e Artesanato Litúrgico Ltda - Loja ".$cidade;
+					}
+					
+					// if($linha["producao"] == "Atelier" && $linha["tipo_entrega"] == "Sedex" && $tabela != "tb_pedidosw"){
+					// 	$empresa = "D&A Decorações e Artesanato Litúrgico Ltda - Loja ".$cidade;
+					// }
+
+					// if($linha["producao"] == "Atelier" && $linha["tipo_entrega"] == "Retirar Loja" && $tabela != "tb_pedidosw"){
+					// 	$empresa =  "D&A Decorações e Artesanato Litúrgico Ltda - Loja ".$cidade;
+					// }
+					$obj_pesquisa_pedido["Empresa"] = $empresa;
+					$obj_pesquisa_pedido["Cliente"] = $linha["nome"];
+					$obj_pesquisa_pedido["ClienteCNPJ"] = empty($linha["cnpj"]) ? preg_replace("/[^0-9]/", "", $linha["cpf"]) : preg_replace("/[^0-9]/", "", $linha["cnpj"]);
+					$obj_pesquisa_pedido["Vendedor"] = "";
+
+					if($tabela == "tb_pedidosw" || $tabela == "tb_pedidos"){
+						$plano_conta = "VENDA DE MERCADORIAS";
+					}else{
+						$plano_conta = "REVENDA DE MERCADORIAS";
+					}
+
+					$obj_pesquisa_pedido["PlanoDeConta"] = $plano_conta;
+					$obj_pesquisa_pedido["FormaPagamento"] = "";
+					$obj_pesquisa_pedido["NumeroParcelas"] = 0;
+					$obj_pesquisa_pedido["Transportadora"] = "";
+					$obj_pesquisa_pedido["DataPostagem"] = "";
+					$obj_pesquisa_pedido["DataEnvio"] = "0001-01-01T00:00:00-02:00";
+					$obj_pesquisa_pedido["Enviado"] = "false";
+					$obj_pesquisa_pedido["ValorFrete"] = 0.0;
+					$obj_pesquisa_pedido["FreteContaEmitente"] = "false";
+					$obj_pesquisa_pedido["ValorSeguro"] = 0.0;
+					$obj_pesquisa_pedido["Descricao"] = ""; 
+					$obj_pesquisa_pedido["OutrasDespesas"] = 0.0;
+					$obj_pesquisa_pedido["TransacaoCartao"] = "";
+					$obj_pesquisa_pedido["ValorFinal"] = 0.0;
+					$obj_pesquisa_pedido["Finalizado"] = "false";
+					$obj_pesquisa_pedido["Lancado"] = "false";
+					$obj_pesquisa_pedido["Municipio"] = "";
+					$obj_pesquisa_pedido["CodigoMunicipio"] = "";
+					$obj_pesquisa_pedido["Pais"] = "";
+					$obj_pesquisa_pedido["CEP"] = "";
+					$obj_pesquisa_pedido["UF"] = "";
+					$obj_pesquisa_pedido["UFCodigo"] = "";
+					$obj_pesquisa_pedido["Bairro"] = "";
+					$obj_pesquisa_pedido["Logradouro"] = "";
+					$obj_pesquisa_pedido["LogradouroNumero"] = "";
+					$obj_pesquisa_pedido["LogradouroComplemento"] = "";
+					$obj_pesquisa_pedido["Items"] = array();
+					$obj_produto["Codigo"] = $id_sige;
+					$obj_produto["Unidade"] = "und";
+					if(empty($id_sige) || empty($descricao)){
+						// echo $linha["id_cliente"]." - ".$linha["id_pedido"] . " - " .$id_sige." - ". $descricao.PHP_EOL;
+						$pedido_validado = false;
+					}
+					$obj_produto["Descricao"] = $descricao;
+					$obj_produto["Quantidade"] = (double) $linha["quantidade"];
+					$obj_produto["ValorUnitario"] = (double) $linha["preco"] / $linha["quantidade"];
+					$obj_produto["ValorFrente"] = 0;
+					$obj_produto["DescontoUnitario"] = 0;
+					$obj_produto["Desconto Total"] = 0;
+					$obj_produto["Comprimento"] = 0;
+					$obj_produto["Altura"] = 0;
+					$obj_produto["Largura"] = 0;
+					$obj_produto["FreteGratis"] = "true";
+					$obj_produto["ValorUnitarioFrete"] = 0;
+					$obj_produto["PrazoEntregaFrete"] = 0;
+					$id_pedidos[] = $linha[$id];
 				}else{
-					$status = "Retirar loja ".$uf;
+					if(empty($id_sige) || empty($descricao)){
+						// echo $linha["id_cliente"]." - ".$linha["id_pedido"] . " - " .$id_sige." - ". $descricao.PHP_EOL;
+						$pedido_validado = false;
+					}
+					$obj_produto["Codigo"] = $id_sige;
+					$obj_produto["Unidade"] = "und";
+					$obj_produto["Descricao"] = $descricao;
+					$obj_produto["Quantidade"] = (double) $linha["quantidade"];
+					$obj_produto["ValorUnitario"] = (double) $linha["preco"] / $linha["quantidade"];
+					$obj_produto["ValorFrente"] = 0;
+					$obj_produto["DescontoUnitario"] = 0;
+					$obj_produto["Desconto Total"] = 0;
+					$obj_produto["Comprimento"] = 0;
+					$obj_produto["Altura"] = 0;
+					$obj_produto["Largura"] = 0;
+					$obj_produto["FreteGratis"] = "true";
+					$obj_produto["ValorUnitarioFrete"] = 0;
+					$obj_produto["PrazoEntregaFrete"] = 0;
+					$id_pedidos[] = $linha[$id];
 				}
-				
-				$obj_pesquisa_pedido["Status"] = $status;
-				$obj_pesquisa_pedido["Categoria"] = "";
-				// $obj_pesquisa_pedido["Validade"] = $linha["data_entrega"]."T00:00:00-02:00";
-				$obj_pesquisa_pedido["Validade"] = "0001-01-01T00:00:00-02:00";
-
-				if(($linha["producao"] == "Fábrica" && $linha["tipo_entrega"] == "Sedex") || $tabela == "tb_pedidosw"){
-					$empresa = "D&A PARAMENTOS LTDA";
-				}else{
-					$empresa = "D&A Decorações e Artesanato Litúrgico Ltda - Loja ".$cidade;
-				}
-				
-				// if($linha["producao"] == "Atelier" && $linha["tipo_entrega"] == "Sedex" && $tabela != "tb_pedidosw"){
-				// 	$empresa = "D&A Decorações e Artesanato Litúrgico Ltda - Loja ".$cidade;
-				// }
-
-				// if($linha["producao"] == "Atelier" && $linha["tipo_entrega"] == "Retirar Loja" && $tabela != "tb_pedidosw"){
-				// 	$empresa =  "D&A Decorações e Artesanato Litúrgico Ltda - Loja ".$cidade;
-				// }
-				$obj_pesquisa_pedido["Empresa"] = $empresa;
-				$obj_pesquisa_pedido["Cliente"] = $linha["nome"];
-				$obj_pesquisa_pedido["ClienteCNPJ"] = empty($linha["cnpj"]) ? preg_replace("/[^0-9]/", "", $linha["cpf"]) : preg_replace("/[^0-9]/", "", $linha["cnpj"]);
-				$obj_pesquisa_pedido["Vendedor"] = "";
-
-				if($tabela == "tb_pedidosw" || $tabela == "tb_pedidos"){
-					$plano_conta = "VENDA DE MERCADORIAS";
-				}else{
-					$plano_conta = "REVENDA DE MERCADORIAS";
-				}
-
-				$obj_pesquisa_pedido["PlanoDeConta"] = $plano_conta;
-				$obj_pesquisa_pedido["FormaPagamento"] = "";
-				$obj_pesquisa_pedido["NumeroParcelas"] = 0;
-				$obj_pesquisa_pedido["Transportadora"] = "";
-				$obj_pesquisa_pedido["DataPostagem"] = "";
-				$obj_pesquisa_pedido["DataEnvio"] = "0001-01-01T00:00:00-02:00";
-				$obj_pesquisa_pedido["Enviado"] = "false";
-				$obj_pesquisa_pedido["ValorFrete"] = 0.0;
-				$obj_pesquisa_pedido["FreteContaEmitente"] = "false";
-				$obj_pesquisa_pedido["ValorSeguro"] = 0.0;
-				$obj_pesquisa_pedido["Descricao"] = ""; 
-				$obj_pesquisa_pedido["OutrasDespesas"] = 0.0;
-				$obj_pesquisa_pedido["TransacaoCartao"] = "";
-				$obj_pesquisa_pedido["ValorFinal"] = 0.0;
-				$obj_pesquisa_pedido["Finalizado"] = "false";
-				$obj_pesquisa_pedido["Lancado"] = "false";
-				$obj_pesquisa_pedido["Municipio"] = "";
-				$obj_pesquisa_pedido["CodigoMunicipio"] = "";
-				$obj_pesquisa_pedido["Pais"] = "";
-				$obj_pesquisa_pedido["CEP"] = "";
-				$obj_pesquisa_pedido["UF"] = "";
-				$obj_pesquisa_pedido["UFCodigo"] = "";
-				$obj_pesquisa_pedido["Bairro"] = "";
-				$obj_pesquisa_pedido["Logradouro"] = "";
-				$obj_pesquisa_pedido["LogradouroNumero"] = "";
-				$obj_pesquisa_pedido["LogradouroComplemento"] = "";
-				$obj_pesquisa_pedido["Items"] = array();
-				$obj_produto["Codigo"] = $id_sige ;
-				$obj_produto["Unidade"] = "und";
-				$obj_produto["Descricao"] = $descricao;
-				$obj_produto["Quantidade"] = (double) $linha["quantidade"];
-				$obj_produto["ValorUnitario"] = (double) $linha["preco"] / $linha["quantidade"];
-				$obj_produto["ValorFrente"] = 0;
-				$obj_produto["DescontoUnitario"] = 0;
-				$obj_produto["Desconto Total"] = 0;
-				$obj_produto["Comprimento"] = 0;
-				$obj_produto["Altura"] = 0;
-				$obj_produto["Largura"] = 0;
-				$obj_produto["FreteGratis"] = "true";
-				$obj_produto["ValorUnitarioFrete"] = 0;
-				$obj_produto["PrazoEntregaFrete"] = 0;
-			}else{
-				$obj_produto["Codigo"] = $id_sige;
-				$obj_produto["Unidade"] = "und";
-				$obj_produto["Descricao"] = $descricao;
-				$obj_produto["Quantidade"] = (double) $linha["quantidade"];
-				$obj_produto["ValorUnitario"] = (double) $linha["preco"] / $linha["quantidade"];
-				$obj_produto["ValorFrente"] = 0;
-				$obj_produto["DescontoUnitario"] = 0;
-				$obj_produto["Desconto Total"] = 0;
-				$obj_produto["Comprimento"] = 0;
-				$obj_produto["Altura"] = 0;
-				$obj_produto["Largura"] = 0;
-				$obj_produto["FreteGratis"] = "true";
-				$obj_produto["ValorUnitarioFrete"] = 0;
-				$obj_produto["PrazoEntregaFrete"] = 0;	
-			}
-			$obj_pesquisa_pedido["Items"][] = $obj_produto; 
-
+				$obj_pesquisa_pedido["Items"][] = $obj_produto; 
+			// }
 		}
 	}
 	function cadastra_pedido($obj_post){
