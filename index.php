@@ -1,22 +1,53 @@
 <?php
-	// ini_set('default_charset', 'utf-8');
+	//ini_set('default_charset', 'utf-8');
 	set_time_limit(0);
 	// include_once("classes/medoo.min.php");
 
-	$tabelas_pedido = array(array("tabela" => "tb_pedidos", "id" => "id_pedido", "loja" => "São Paulo", "uf" => "SP"),
-						array("tabela" => "tb_pedidosbh", "id" => "id_pedidobh", "loja" => "Belo Horizonte", "uf" => "BH"),
-						array("tabela" => "tb_pedidosrj", "id" => "id_pedidorj", "loja" => "Rio", "uf" => "RJ"),
-						array("tabela" => "tb_pedidosw", "id" => "id_pedidow", "loja" => "D&A PARAMENTOS LTDA", "uf" => "")
-						);
+	$tabelas_pedido = array(array("tabela" => "tb_pedidos", "id" => "id_pedido", "loja" => "Loja São Paulo", "uf" => "Loja SP"),
+							array("tabela" => "tb_pedidosbh", "id" => "id_pedidobh", "loja" => "Loja BH", "uf" => "Loja BH"),
+							array("tabela" => "tb_pedidosrj", "id" => "id_pedidorj", "loja" => "Rio de Janeiro", "uf" => "Loja Rio"),
+							array("tabela" => "tb_pedidosw", "id" => "id_pedidow", "loja" => "D&A PARAMENTOS LTDA", "uf" => ""),
+							array("tabela" => "tb_pedidosdf", "id" => "id_pedidodf", "loja" => "Brasília", "uf" => "Loja DF")
+							);
+
+	// $tabelas_pedido = array(array("tabela" => "tb_pedidosrj", "id" => "id_pedidorj", "loja" => "Rio de Janeiro", "uf" => "Loja Rio"));
 
 	$_DB = cria_conexao();
 
+	// $qry = "SELECT
+	// 			ped.*,
+	// 			cli.nome,
+	// 			cli.cpf,
+	// 			cli.cnpj,
+	// 			cli.cidade,
+	// 			cli.cep,
+	// 			cli.uf,
+	// 			cli.bairro,
+	// 			cli.endereco,
+	// 			cli.end_num,
+	// 			cli.complemento
+	// 			FROM tb_pedidosrj ped
+	// 			LEFT JOIN tb_clientes cli ON cli.id_cliente = ped.id_cliente
+	// 			WHERE
+	// 			(status = 'Pendente' OR status = 'Pronto')
+	// 	 		AND
+	// 	 		(enviado_para_sige is null OR enviado_para_sige <> 'true')
+	// 	 		AND
+	// 	 		DATE_FORMAT(data_entrega, '%m%Y') = DATE_FORMAT(CURRENT_DATE, '%m%Y')
+	// 	 		AND
+	// 			id_pedidorj = 'RJ810'
+	// 			GROUP BY ped.id_pedidorj order by id_cliente";
+	// 			// echo $qry.PHP_EOL;
+	// 	$aaa = query($qry);
+	// 	print_r($aaa);
+	// 	exit();
+
 	function cria_conexao(){
-		$_DB = mysql_connect('localhost', '127.0.0.1', '');
+		$_DB = mysql_connect('localhost', '', '');
 		if (!$_DB) {
 		    die('Could not connect: ' . mysql_error());
 		}
-		$db_selected = mysql_select_db('trina', $_DB);
+		$db_selected = mysql_select_db('deapaine_deapainel1', $_DB);
 		if (!$db_selected) {
 		    die ('Can\'t use foo : ' . mysql_error());
 		}
@@ -88,9 +119,10 @@
 				$result_qry = query($sql);
 				// $result_qry = $_DB->select("tb_produtossige", "*", array("id_sige" => $item->Codigo));
 				if(count($result_qry) == 0){
-					$sql_insert = "INSERT INTO tb_produtossige values(null, ".$produtos_paramentos["id_sige"].", '".$produtos_paramentos["descricao"]."' )";
+					$sql_insert = "INSERT INTO tb_produtossige values(null, ".$produtos_paramentos["id_sige"].", '".utf8_decode($produtos_paramentos["descricao"])."' )";
+					// echo $sql_insert;exit;
 					grava($sql_insert);
-					echo "Produto " . $produtos_paramentos["descricao"]. "gravado com sucesso.<br>";
+					echo "Produto " . utf8_decode($produtos_paramentos["descricao"]). "gravado com sucesso.<br>";
 					// $_DB->insert("tb_produtossige", $produtos_paramentos);
 				}
 			}
@@ -208,13 +240,12 @@
 
 	//  PEDIDOS
 
-	
 
 	function monta_pesquisa_pedido($tabela, $id, $cidade, $uf){
 		global $_DB;
 		global $tabelas_pedido;
-		
-		$qry = "SELECT 
+
+		$qry = "SELECT
 				ped.*,
 				cli.nome,
 				cli.cpf,
@@ -228,66 +259,83 @@
 				cli.complemento
 				FROM ".$tabela." ped
 				LEFT JOIN tb_clientes cli ON cli.id_cliente = ped.id_cliente
-				WHERE 
-				(status = 'Pendente' OR status = 'Pronto') 
+				WHERE
+				(status = 'Pendente' OR status = 'Pronto')
 				AND
 				(enviado_para_sige is null OR enviado_para_sige <> 'true')
 				AND
-				DATE_FORMAT(data_entrega, '%m%Y') = DATE_FORMAT(CURRENT_DATE, '%m%Y') 
+				DATE_FORMAT(data_entrega, '%m%Y') = DATE_FORMAT(CURRENT_DATE, '%m%Y')
 				GROUP BY ped.".$id. " order by id_cliente";
-				// echo $qry.PHP_EOL;
+
+
+
+		// $qry = "SELECT
+		// 		ped.*,
+		// 		cli.nome,
+		// 		cli.cpf,
+		// 		cli.cnpj,
+		// 		cli.cidade,
+		// 		cli.cep,
+		// 		cli.uf,
+		// 		cli.bairro,
+		// 		cli.endereco,
+		// 		cli.end_num,
+		// 		cli.complemento
+		// 		FROM tb_pedidosrj ped
+		// 		LEFT JOIN tb_clientes cli ON cli.id_cliente = ped.id_cliente
+		// 		WHERE
+		// 		(status = 'Pendente' OR status = 'Pronto')
+		//  		AND
+		//  		(enviado_para_sige is null OR enviado_para_sige <> 'true')
+		//  		AND
+		//  		DATE_FORMAT(data_entrega, '%m%Y') = DATE_FORMAT(CURRENT_DATE, '%m%Y')
+		//  		AND
+		// 		ped.id_cliente = '2620'";
+
+		// 		echo $qry.PHP_EOL;
 		$obj_pedido = query($qry);
 		// print_r($obj_pedido);exit;
 		$id_cliente = 0;
 		$pedido_validado = true;
 
-		// print_r($obj_pedido);exit;
-		foreach($obj_pedido as $linha){
+		foreach($obj_pedido as $k_linha => $linha){
 			//echo $linha["id_cliente"].PHP_EOL;
-			// if($linha["id_cliente"] == 3384){
+			
 				if(empty($linha["idComp"])){
-					echo "id (". $linha[$id] . ") da tabela " .$tabela. utf8_encode(" está sem id_produto_SIGE <br>").PHP_EOL;
+					echo "id (". $linha[$id] . ") da tabela " .$tabela. utf8_decode(" está sem id_produto_SIGE <br>").PHP_EOL;
 					$id_sige = "";
 					$descricao = "";
 				}else{
 					$qry2 = "SELECT  * FROM tb_produtossige  WHERE id_sige = ".$linha["idComp"] ;
 					// echo $qry.PHP_EOL;
 					$produto_result = query($qry2);
+
 					$produto_result = $produto_result[0];
 					$id_sige = $produto_result["id_sige"];
 					$descricao = utf8_encode($produto_result["descricao"]);
-					
+
 				}
 				// echo $pedido_validado.PHP_EOL;
 				if($linha["id_cliente"] != $id_cliente){
+
 					if(!empty($obj_pesquisa_pedido)){
-						// if($id_cliente == 243){
-							// echo json_encode($obj_pesquisa_pedido);
-							// print_r($obj_pesquisa_pedido);
-							if($pedido_validado == true){
-								cadastra_pedido($obj_pesquisa_pedido);
-								foreach($id_pedidos as $v_id_pedido){
-									$qry_update = ' UPDATE '.$tabela.' set enviado_para_sige = "true" WHERE '.$id.' = '.  $v_id_pedido;
-									grava($qry_update);
-									// echo $qry_update."<br>".PHP_EOL;
-									echo "Pedido (".$v_id_pedido.") enviado para o SIGE com sucesso<br>".PHP_EOL;
-								}
-							// // $a = cadastra_pedido($obj_pesquisa_pedido);
-							// 	$qry_update = 'UPDATE '.$tabela.' set enviado_para_sige = "true" WHERE '.$id.' = '. $linha[$id];
+						if($pedido_validado == true){
+							cadastra_pedido($obj_pesquisa_pedido);
+							foreach($id_pedidos as $v_id_pedido){
+								$qry_update = ' UPDATE '.$tabela.' set enviado_para_sige = "true" WHERE '.$id.' = "'.  $v_id_pedido . '"';
+								// echo $qry_update;
+								grava($qry_update);
+								// echo $qry_update."<br>".PHP_EOL;
 							}
-							$pedido_validado = true;
-							// print_r($a);
-						// }
-							// if($linha["id_cliente"] == 71){
-							// 	exit();
-							// }
+						}
+						$pedido_validado = true;
 					}
 
 					$id_cliente = $linha["id_cliente"];
 					$id_pedidos = array();
 
 					// PROCESSO DE CRUD DE CLIENTE DO PAINEL PARA O SIGE
-					
+
 					$cpf = preg_replace("/[^0-9]/", "", $linha["cpf"]);
 					$cnpj = preg_replace("/[^0-9]/", "", $linha["cnpj"]);
 
@@ -301,23 +349,23 @@
 						echo "Cliente cadastrado no SIGE- ".  $linha["nome"]."<br>".PHP_EOL;
 					}
 
-					
+
 					// PEDIDOS
-					
+
 					$obj_pesquisa_pedido = array();
 					$obj_pesquisa_pedido["Codigo"] = "";
 					$obj_pesquisa_pedido["OrigemVenda"] = "Venda Direta";
-					$obj_pesquisa_pedido["Deposito"] = "Depósito Loja ".$uf;
+					$obj_pesquisa_pedido["Deposito"] = ("Depósito ".$uf);
 					$obj_pesquisa_pedido["StatusSistema"] = "Pedido";
-					
+
 
 					if($tabela == "tb_pedidosw"){
 						$status = "Sedex";
 					// }elseif($tabela == "tb_pedidos"){
 					}else{
-						$status = "Retirar loja ".$uf;
+						$status = "Retirar loja ".$loja;
 					}
-					
+
 					$obj_pesquisa_pedido["Status"] = $status;
 					$obj_pesquisa_pedido["Categoria"] = "";
 					// $obj_pesquisa_pedido["Validade"] = $linha["data_entrega"]."T00:00:00-02:00";
@@ -326,9 +374,9 @@
 					if(($linha["producao"] == "Fábrica" && $linha["tipo_entrega"] == "Sedex") || $tabela == "tb_pedidosw"){
 						$empresa = "D&A PARAMENTOS LTDA";
 					}else{
-						$empresa = "D&A Decorações e Artesanato Litúrgico Ltda - Loja ".$cidade;
+						$empresa = ("D&A Decorações e Artesanato Litúrgico Ltda - ".$cidade);
 					}
-					
+
 					// if($linha["producao"] == "Atelier" && $linha["tipo_entrega"] == "Sedex" && $tabela != "tb_pedidosw"){
 					// 	$empresa = "D&A Decorações e Artesanato Litúrgico Ltda - Loja ".$cidade;
 					// }
@@ -414,7 +462,26 @@
 					$obj_produto["PrazoEntregaFrete"] = 0;
 					$id_pedidos[] = $linha[$id];
 				}
-				$obj_pesquisa_pedido["Items"][] = $obj_produto; 
+				$obj_pesquisa_pedido["Items"][] = $obj_produto;
+					// if($linha["id_cliente"] == 2620 && $linha["idComp"] == 23827 ){
+					// 	print_r($obj_pesquisa_pedido);exit;
+					// }	
+				if(empty($obj_pedido[$k_linha+1])){
+					if(!empty($obj_pesquisa_pedido)){
+						if($pedido_validado == true){
+							$success = cadastra_pedido($obj_pesquisa_pedido);
+							foreach($id_pedidos as $v_id_pedido){
+								$qry_update = ' UPDATE '.$tabela.' set enviado_para_sige = "true" WHERE '.$id.' = '.  $v_id_pedido;
+								grava($qry_update);
+								// echo $qry_update."<br>".PHP_EOL;
+								if($success == true){
+									echo "Pedido (".$v_id_pedido.") enviado para o SIGE com sucesso<br>".PHP_EOL;
+								}
+							}
+						}
+						$pedido_validado = true;
+					}
+				}
 			// }
 		}
 	}
@@ -428,10 +495,18 @@
 		if (($result = curl_exec($ch)) === FALSE) {
 			die('cURL error: '.curl_error($ch)."<br />\n");
 		} else {
-			echo "Success!<br />\n";
+			if(stripos($result, "PEDIDO SALVO COM SUCESSO") === false){
+				echo "#ERRO_PEDIDO :  " . utf8_decode($result);
+				print_r($obj_post);
+				$retorno = false;
+			}else{
+				echo "<b>".$result."</b> <br />\n";
+				$retorno = true;
+			}
+
 		}
 		curl_close($ch);
-		return json_decode($result);
+		return $retorno;
 	}
 
 ?>
